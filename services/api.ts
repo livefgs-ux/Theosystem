@@ -65,6 +65,19 @@ export const api = {
     return await supabase.from('students').select('*').ilike('name', `%${query}%`).limit(10);
   },
 
+  async getEnrolledStudents(courseId: string) {
+    const { data: enrollments } = await supabase
+      .from('enrollments')
+      .select('student:students(*)')
+      .eq('course_id', courseId);
+      
+    // Filter nulls and sort
+    return (enrollments || [])
+      .map((e: any) => e.student)
+      .filter((s: any) => !!s)
+      .sort((a: any, b: any) => a.name.localeCompare(b.name));
+  },
+
   async enrollStudent(courseId: string, studentId: string) {
     // Check if enrolled
     const { data: existing } = await supabase
@@ -125,6 +138,7 @@ export const api = {
             }));
 
             history.push({
+                enrollmentId: enroll.id, // Critical for saving changes
                 courseName: enroll.course?.name,
                 termName: enroll.course?.term?.name || 'Sem Período',
                 modules: organizedModules

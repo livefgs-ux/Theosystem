@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { AppState } from '../types';
-import { Book, ArrowRightLeft, Calendar, Loader2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { AppState, Student } from '../types';
+import { Book, ArrowRightLeft, Calendar, Loader2, RefreshCw } from 'lucide-react';
 import { api } from '../services/api';
 
 interface Props {
@@ -18,6 +18,29 @@ export const BooksPage: React.FC<Props> = ({ data, updateData }) => {
   const [selectedBookId, setSelectedBookId] = useState('');
   const [transactionDate, setTransactionDate] = useState(new Date().toISOString().split('T')[0]);
   const [transactionType, setTransactionType] = useState<'delivery' | 'return'>('delivery');
+
+  // Filtered Students State
+  const [courseStudents, setCourseStudents] = useState<Student[]>([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+
+  // Load students when course is selected
+  useEffect(() => {
+    if (selectedCourseId) {
+        setLoadingStudents(true);
+        api.getEnrolledStudents(selectedCourseId)
+           .then(students => {
+               setCourseStudents(students);
+               setLoadingStudents(false);
+           })
+           .catch(err => {
+               console.error("Erro ao carregar alunos:", err);
+               setCourseStudents([]);
+               setLoadingStudents(false);
+           });
+    } else {
+        setCourseStudents([]);
+    }
+  }, [selectedCourseId]);
 
   const handleTransaction = async () => {
     if(!selectedStudentId || !selectedBookId || !transactionDate) return;
@@ -45,6 +68,8 @@ export const BooksPage: React.FC<Props> = ({ data, updateData }) => {
       });
 
       alert('Movimentação registrada com sucesso!');
+      // We don't clear course/student to allow rapid entry for same student/course if needed, 
+      // but clearing book/student might be better workflow. Let's clear student and book.
       setSelectedBookId('');
       setSelectedStudentId('');
     } catch (err) {
@@ -55,13 +80,8 @@ export const BooksPage: React.FC<Props> = ({ data, updateData }) => {
     }
   };
 
-  const getFilteredStudents = () => {
-    if (!selectedCourseId) return [];
-    return data.students.filter(s => s.courseId === selectedCourseId);
-  };
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-300">
        <div className="flex items-center justify-between">
          <h2 className="text-2xl font-bold text-slate-800">Livros e Materiais</h2>
          <div className="flex bg-slate-100 p-1 rounded-lg">
@@ -89,7 +109,7 @@ export const BooksPage: React.FC<Props> = ({ data, updateData }) => {
                const available = book.stock - currentlyOut;
 
                return (
-                 <div key={book.id} className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between h-full">
+                 <div key={book.id} className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between h-full hover:shadow-md transition-shadow">
                     <div>
                       <div className="flex justify-between items-start mb-2">
                         <span className="bg-slate-100 text-slate-600 text-xs px-2 py-1 rounded font-medium">{book.code}</span>
@@ -126,13 +146,13 @@ export const BooksPage: React.FC<Props> = ({ data, updateData }) => {
               <div className="grid grid-cols-2 gap-4">
                  <button 
                   onClick={() => setTransactionType('delivery')}
-                  className={`py-3 px-4 rounded-lg border-2 font-medium text-sm text-center transition-all ${transactionType === 'delivery' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-500 hover:border-slate-300'}`}
+                  className={`py-3 px-4 rounded-lg border-2 font-medium text-sm text-center transition-all ${transactionType === 'delivery' ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm' : 'border-slate-200 text-slate-500 hover:border-slate-300'}`}
                  >
                    Entregar Livro
                  </button>
                  <button 
                   onClick={() => setTransactionType('return')}
-                  className={`py-3 px-4 rounded-lg border-2 font-medium text-sm text-center transition-all ${transactionType === 'return' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-500 hover:border-slate-300'}`}
+                  className={`py-3 px-4 rounded-lg border-2 font-medium text-sm text-center transition-all ${transactionType === 'return' ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-sm' : 'border-slate-200 text-slate-500 hover:border-slate-300'}`}
                  >
                    Receber Devolução
                  </button>
@@ -141,7 +161,7 @@ export const BooksPage: React.FC<Props> = ({ data, updateData }) => {
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Turma</label>
                 <select 
-                  className="w-full border border-slate-300 rounded-lg p-2.5 bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full border border-slate-300 rounded-lg p-2.5 bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"
                   value={selectedCourseId}
                   onChange={(e) => { setSelectedCourseId(e.target.value); setSelectedStudentId(''); }}
                 >
@@ -151,22 +171,28 @@ export const BooksPage: React.FC<Props> = ({ data, updateData }) => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Aluno</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1 flex justify-between">
+                    Aluno
+                    {loadingStudents && <span className="text-xs text-blue-500 flex items-center gap-1"><RefreshCw size={10} className="animate-spin"/> Carregando...</span>}
+                </label>
                 <select 
-                  className="w-full border border-slate-300 rounded-lg p-2.5 bg-white focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-100 disabled:text-slate-400"
+                  className="w-full border border-slate-300 rounded-lg p-2.5 bg-white focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-100 disabled:text-slate-400 transition-shadow"
                   value={selectedStudentId}
                   onChange={(e) => setSelectedStudentId(e.target.value)}
-                  disabled={!selectedCourseId}
+                  disabled={!selectedCourseId || loadingStudents}
                 >
-                  <option value="">Selecione o aluno...</option>
-                  {getFilteredStudents().map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  <option value="">
+                      {!selectedCourseId ? 'Selecione a turma primeiro...' : 
+                       courseStudents.length === 0 ? 'Nenhum aluno encontrado nesta turma' : 'Selecione o aluno...'}
+                  </option>
+                  {courseStudents.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Livro</label>
                 <select 
-                   className="w-full border border-slate-300 rounded-lg p-2.5 bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                   className="w-full border border-slate-300 rounded-lg p-2.5 bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"
                    value={selectedBookId}
                    onChange={(e) => setSelectedBookId(e.target.value)}
                 >
@@ -183,7 +209,7 @@ export const BooksPage: React.FC<Props> = ({ data, updateData }) => {
                     type="date" 
                     value={transactionDate}
                     onChange={(e) => setTransactionDate(e.target.value)}
-                    className="w-full border border-slate-300 rounded-lg p-2.5 pl-10 bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full border border-slate-300 rounded-lg p-2.5 pl-10 bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"
                   />
                 </div>
               </div>
@@ -191,7 +217,7 @@ export const BooksPage: React.FC<Props> = ({ data, updateData }) => {
               <button 
                 onClick={handleTransaction}
                 disabled={!selectedStudentId || !selectedBookId || submitting}
-                className="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium py-3 rounded-lg mt-4 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className={`w-full font-medium py-3 rounded-lg mt-4 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md hover:shadow-lg hover:-translate-y-0.5 ${transactionType === 'delivery' ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}`}
               >
                 {submitting && <Loader2 className="animate-spin" size={20} />}
                 {transactionType === 'delivery' ? 'Confirmar Entrega' : 'Confirmar Devolução'}
