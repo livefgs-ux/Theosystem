@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient';
-import { AcademicTerm, Course, SpreadsheetData, Student } from '../types';
+import { AcademicTerm, Course, SpreadsheetData, Student, Book, AppState } from '../types';
 
 export const api = {
   // --- TERMS ---
@@ -11,7 +11,7 @@ export const api = {
   },
 
   async createTerm(name: string, userId: string) {
-    return await supabase.from('academic_terms').insert({ name, user_id: userId });
+    return await supabase.from('academic_terms').insert({ name, user_id: userId }).select();
   },
 
   async duplicateTerm(termId: string, newName: string) {
@@ -23,16 +23,42 @@ export const api = {
   },
 
   // --- COURSES ---
-  async getCourses(termId: string) {
-    return await supabase
-      .from('courses')
-      .select('*')
-      .eq('term_id', termId)
-      .order('name');
+  async getCourses(termId?: string) {
+    let query = supabase.from('courses').select('*, term:academic_terms(name)').order('name');
+    if (termId) {
+      query = query.eq('term_id', termId);
+    }
+    return await query;
   },
 
   async createCourse(termId: string, name: string) {
-    return await supabase.from('courses').insert({ term_id: termId, name });
+    return await supabase.from('courses').insert({ term_id: termId, name }).select();
+  },
+
+  // --- STUDENTS ---
+  async getAllStudents() {
+    return await supabase.from('students').select('*').order('name');
+  },
+
+  async findStudent(name: string, userId: string) {
+    return await supabase
+      .from('students')
+      .select('*')
+      .eq('user_id', userId)
+      .ilike('name', name)
+      .maybeSingle();
+  },
+
+  async addStudent(name: string, matricula: string, userId: string) {
+    return await supabase.from('students').insert({ name, matricula, user_id: userId }).select().single();
+  },
+
+  async searchStudents(query: string) {
+    return await supabase.from('students').select('*').ilike('name', `%${query}%`).limit(10);
+  },
+
+  async enrollStudent(courseId: string, studentId: string) {
+    return await supabase.from('enrollments').insert({ course_id: courseId, student_id: studentId }).select();
   },
 
   // --- SPREADSHEET DATA ---
@@ -53,10 +79,9 @@ export const api = {
       .from('enrollments')
       .select('*, student:students(*)')
       .eq('course_id', courseId)
-      .order('created_at'); // Ideally order by student name, handled in JS
+      .order('created_at'); 
 
     // 4. Get Records (Cells)
-    // We only get records for enrollments in this course
     const enrollmentIds = (enrollmentsData || []).map(e => e.id);
     let recordsMap: Record<string, string> = {};
 
@@ -71,13 +96,11 @@ export const api = {
       });
     }
 
-    // Sort columns inside modules
     const modules = (modulesData || []).map((m: any) => ({
       ...m,
       columns: (m.columns || []).sort((a: any, b: any) => a.order_index - b.order_index)
     }));
 
-    // Sort enrollments by student name
     const enrollments = (enrollmentsData || []).sort((a: any, b: any) => 
       (a.student?.name || '').localeCompare(b.student?.name || '')
     );
@@ -90,7 +113,6 @@ export const api = {
     };
   },
 
-  // --- MANIPULATION ---
   async saveRecord(enrollmentId: string, columnId: string, value: string) {
     return await supabase
       .from('academic_records')
@@ -102,27 +124,44 @@ export const api = {
       }, { onConflict: 'enrollment_id,column_id' });
   },
 
-  async addStudent(name: string, matricula: string, userId: string) {
-    return await supabase.from('students').insert({ name, matricula, user_id: userId }).select().single();
-  },
-
-  async searchStudents(query: string) {
-    return await supabase.from('students').select('*').ilike('name', `%${query}%`).limit(10);
-  },
-
-  async enrollStudent(courseId: string, studentId: string) {
-    return await supabase.from('enrollments').insert({ course_id: courseId, student_id: studentId });
-  },
-
   async addModule(courseId: string, name: string) {
-    return await supabase.from('course_modules').insert({ course_id: courseId, name });
+    return await supabase.from('course_modules').insert({ course_id: courseId, name }).select();
   },
 
-  async addColumn(moduleId: string, name: string) {
-    return await supabase.from('module_columns').insert({ module_id: moduleId, name });
+  async addColumn(moduleId: string, name: string, type: 'text' | 'date' | 'check' = 'text') {
+    return await supabase.from('module_columns').insert({ module_id: moduleId, name, type }).select();
+  },
+
+  // --- LIBRARY BOOKS ---
+  async getLibraryBooks() {
+    return await supabase.from('library_books').select('*').order('title');
+  },
+
+  async createBook(book: Partial<Book> & { user_id: string }) {
+    return await supabase.from('library_books').insert(book).select();
+  },
+
+  // --- BOOK TRANSACTIONS ---
+  async getTransactions() {
+    return await supabase.from('book_transactions').select('*').order('date', { ascending: false });
+  },
+
+  async createTransaction(data: { studentId: string, bookId: string, type: string, date: string }) {
+    return await supabase
+      .from('book_transactions')
+      .insert({
+        student_id: data.studentId,
+        book_id: data.bookId,
+        type: data.type,
+        date: data.date
+      });
   },
 
   // --- ATTENDANCE ---
+  async getAttendance() {
+    return await supabase.from('attendance').select('*');
+  },
+
   async deleteAttendance(studentId: string, courseId: string, date: string) {
     return await supabase
       .from('attendance')
@@ -141,15 +180,29 @@ export const api = {
       }, { onConflict: 'student_id,course_id,date' });
   },
 
-  // --- BOOK TRANSACTIONS ---
-  async createTransaction(data: { studentId: string, bookId: string, type: string, date: string }) {
-    return await supabase
-      .from('book_transactions')
-      .insert({
-        student_id: data.studentId,
-        book_id: data.bookId,
-        type: data.type,
-        date: data.date
-      });
+  // --- GLOBAL DATA ---
+  async fetchGlobalData(): Promise<AppState> {
+    const [students, courses, books, transactions, attendance] = await Promise.all([
+      this.getAllStudents(),
+      this.getCourses(),
+      this.getLibraryBooks(),
+      this.getTransactions(),
+      this.getAttendance()
+    ]);
+
+    // Format courses with simple term string if term is joined
+    const formattedCourses = (courses.data || []).map((c: any) => ({
+      ...c,
+      term: c.term?.name || 'Geral',
+      schedule: [] // Could calculate this from modules or attendance logs
+    }));
+
+    return {
+      students: students.data || [],
+      courses: formattedCourses,
+      books: books.data || [],
+      transactions: transactions.data || [],
+      attendance: attendance.data || []
+    };
   }
 };

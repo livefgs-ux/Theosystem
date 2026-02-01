@@ -18,12 +18,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLog
   ];
 
   return (
-    <aside className="w-64 bg-slate-900 text-slate-100 flex flex-col h-screen fixed left-0 top-0 shadow-xl z-10">
-      <div className="p-6 border-b border-slate-800 flex items-center gap-3">
-        <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-           <GraduationCap size={20} className="text-white" />
+    <aside className="w-64 bg-slate-900 text-slate-100 flex flex-col h-screen fixed left-0 top-0 shadow-xl z-20">
+      <div className="p-6 border-b border-slate-800 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+            <GraduationCap size={20} className="text-white" />
+            </div>
+            <div className="flex flex-col">
+                <span className="font-bold text-xl tracking-tight leading-none">TheoSystem</span>
+                <span className="text-[10px] text-slate-500 font-mono mt-1">v1.2</span>
+            </div>
         </div>
-        <span className="font-bold text-xl tracking-tight">TheoSystem</span>
       </div>
       
       <nav className="flex-1 py-6 px-3 space-y-1">
