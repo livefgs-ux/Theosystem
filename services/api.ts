@@ -61,6 +61,62 @@ export const api = {
     return await supabase.from('enrollments').insert({ course_id: courseId, student_id: studentId }).select();
   },
 
+  async getStudentCompleteHistory(studentId: string) {
+    // 1. Get Student Info
+    const { data: student } = await supabase.from('students').select('*').eq('id', studentId).single();
+    if (!student) throw new Error("Student not found");
+
+    // 2. Get Enrollments with Course Details
+    const { data: enrollments } = await supabase
+      .from('enrollments')
+      .select('*, course:courses(*, term:academic_terms(name))')
+      .eq('student_id', studentId);
+
+    const history = [];
+
+    if (enrollments) {
+        for (const enroll of enrollments) {
+            // 3. For each course, get structure (Modules + Columns) and Records
+            const { data: modulesData } = await supabase
+                .from('course_modules')
+                .select('*, columns:module_columns(*)')
+                .eq('course_id', enroll.course_id)
+                .order('order_index');
+
+            const { data: records } = await supabase
+                .from('academic_records')
+                .select('*')
+                .eq('enrollment_id', enroll.id);
+
+            // Map records for easy access
+            const recordsMap: Record<string, string> = {};
+            (records || []).forEach((r: any) => {
+                recordsMap[r.column_id] = r.value;
+            });
+
+            // Organize modules with their filled values
+            const organizedModules = (modulesData || []).map((m: any) => ({
+                id: m.id,
+                name: m.name,
+                columns: (m.columns || []).sort((a: any, b: any) => a.order_index - b.order_index).map((col: any) => ({
+                    id: col.id,
+                    name: col.name,
+                    type: col.type,
+                    value: recordsMap[col.id] || ''
+                }))
+            }));
+
+            history.push({
+                courseName: enroll.course?.name,
+                termName: enroll.course?.term?.name,
+                modules: organizedModules
+            });
+        }
+    }
+
+    return { student, history };
+  },
+
   // --- SPREADSHEET DATA ---
   async getSpreadsheetData(courseId: string): Promise<SpreadsheetData | null> {
     // 1. Get Course Info

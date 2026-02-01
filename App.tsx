@@ -9,6 +9,7 @@ import { Spreadsheet } from './components/Spreadsheet';
 import { AttendancePage } from './pages/AttendancePage';
 import { BooksPage } from './pages/BooksPage';
 import { ReportsPage } from './pages/ReportsPage';
+import { StudentsPage } from './pages/StudentsPage'; // Import new page
 import { AppState } from './types';
 import { SUPABASE_URL } from './config';
 import { DB_SCHEMA } from './services/schema';
@@ -198,26 +199,7 @@ export default function App() {
             )}
 
             {activeTab === 'students' && (
-              <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                 <h3 className="text-lg font-bold mb-4">Lista de Alunos</h3>
-                 <p className="text-slate-500 mb-6">Para gerenciar alunos, acesse uma Turma específica.</p>
-                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {appData.students.map(s => (
-                       <div key={s.id} className="p-4 border rounded-lg flex items-center gap-3">
-                          <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500">
-                            {s.name.charAt(0)}
-                          </div>
-                          <div>
-                             <div className="font-bold">{s.name}</div>
-                             <div className="text-xs text-slate-400">{s.matricula || 'Sem matrícula'}</div>
-                          </div>
-                       </div>
-                    ))}
-                    {appData.students.length === 0 && (
-                        <p className="text-slate-400 italic col-span-full text-center py-8">Nenhum aluno cadastrado globalmente.</p>
-                    )}
-                 </div>
-              </div>
+              <StudentsPage data={appData} />
             )}
 
             {activeTab === 'books' && (
