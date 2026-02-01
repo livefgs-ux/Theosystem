@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AppState, Student } from '../types';
-import { Search, User, ChevronRight, BookOpen, GraduationCap, Calendar, CheckCircle2, XCircle, ArrowLeft, Loader2 } from 'lucide-react';
+import { Search, User, ChevronRight, BookOpen, GraduationCap, CheckCircle2, XCircle, ArrowLeft, Loader2, Edit2, Save, X } from 'lucide-react';
 import { api } from '../services/api';
 
 interface Props {
@@ -12,6 +12,11 @@ export const StudentsPage: React.FC<Props> = ({ data }) => {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [studentHistory, setStudentHistory] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  
+  // Edit State
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState<Partial<Student>>({});
+  const [isSaving, setIsSaving] = useState(false);
 
   // Filter students
   const filteredStudents = data.students.filter(s => 
@@ -21,6 +26,8 @@ export const StudentsPage: React.FC<Props> = ({ data }) => {
 
   const handleSelectStudent = async (student: Student) => {
     setSelectedStudent(student);
+    setEditForm(student);
+    setIsEditing(false);
     setLoadingHistory(true);
     try {
         const { history } = await api.getStudentCompleteHistory(student.id);
@@ -38,23 +45,110 @@ export const StudentsPage: React.FC<Props> = ({ data }) => {
     setStudentHistory([]);
   };
 
+  const handleSaveStudent = async () => {
+      if (!selectedStudent || !editForm.name) return;
+      setIsSaving(true);
+      try {
+          await api.updateStudent(selectedStudent.id, editForm);
+          setSelectedStudent({ ...selectedStudent, ...editForm } as Student);
+          setIsEditing(false);
+          // Ideally update global state too, but simplified here
+          alert("Dados atualizados com sucesso!");
+      } catch (err) {
+          console.error(err);
+          alert("Erro ao salvar alterações.");
+      } finally {
+          setIsSaving(false);
+      }
+  };
+
+  const getValueStyle = (val: string) => {
+    if (!val) return "text-slate-800 bg-white border-slate-200";
+    const v = val.toUpperCase();
+    if (v === 'F') return "text-red-600 font-bold bg-red-50 border-red-200";
+    if (v === 'OK') return "text-emerald-600 font-bold bg-emerald-50 border-emerald-200";
+    if (v.includes('***')) return "text-orange-500 font-bold bg-orange-50 border-orange-200";
+    if (v.startsWith('OK')) return "text-emerald-700 font-semibold bg-emerald-50 border-emerald-200"; 
+    return "text-slate-700 bg-white border-slate-200";
+  };
+
   // --- VIEW: STUDENT PROFILE ---
   if (selectedStudent) {
     return (
         <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
-            {/* Header */}
-            <div className="flex items-center gap-4">
-                <button 
-                  onClick={handleBack}
-                  className="p-2 rounded-full hover:bg-slate-200 transition-colors"
-                >
-                    <ArrowLeft className="text-slate-600" />
-                </button>
-                <div>
-                    <h2 className="text-2xl font-bold text-slate-800">{selectedStudent.name}</h2>
-                    <p className="text-slate-500 text-sm">Matrícula: {selectedStudent.matricula || 'N/A'} • {selectedStudent.email || 'Sem email'}</p>
+            {/* Header with Edit Mode */}
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                    <button 
+                    onClick={handleBack}
+                    className="p-2 rounded-full hover:bg-slate-200 transition-colors"
+                    >
+                        <ArrowLeft className="text-slate-600" />
+                    </button>
+                    
+                    {isEditing ? (
+                        <div className="flex flex-col gap-2">
+                            <input 
+                                className="text-xl font-bold text-slate-800 border-b border-indigo-500 outline-none bg-transparent"
+                                value={editForm.name}
+                                onChange={e => setEditForm({...editForm, name: e.target.value})}
+                                placeholder="Nome Completo"
+                            />
+                            <div className="flex gap-2">
+                                <input 
+                                    className="text-sm text-slate-500 border border-slate-300 rounded px-2 py-1 w-32"
+                                    value={editForm.matricula}
+                                    onChange={e => setEditForm({...editForm, matricula: e.target.value})}
+                                    placeholder="Matrícula"
+                                />
+                                <input 
+                                    className="text-sm text-slate-500 border border-slate-300 rounded px-2 py-1 w-48"
+                                    value={editForm.email}
+                                    onChange={e => setEditForm({...editForm, email: e.target.value})}
+                                    placeholder="Email"
+                                />
+                            </div>
+                        </div>
+                    ) : (
+                        <div>
+                            <h2 className="text-2xl font-bold text-slate-800">{selectedStudent.name}</h2>
+                            <p className="text-slate-500 text-sm">Matrícula: {selectedStudent.matricula || 'N/A'} • {selectedStudent.email || 'Sem email'}</p>
+                        </div>
+                    )}
+                </div>
+
+                <div className="flex gap-2">
+                    {isEditing ? (
+                        <>
+                             <button 
+                                onClick={() => setIsEditing(false)}
+                                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Cancelar"
+                            >
+                                <X size={20} />
+                            </button>
+                            <button 
+                                onClick={handleSaveStudent}
+                                disabled={isSaving}
+                                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                            >
+                                {isSaving ? <Loader2 className="animate-spin" size={18}/> : <Save size={18} />}
+                                Salvar
+                            </button>
+                        </>
+                    ) : (
+                        <button 
+                            onClick={() => setIsEditing(true)}
+                            className="flex items-center gap-2 text-indigo-600 hover:bg-indigo-50 px-4 py-2 rounded-lg font-medium transition-colors border border-transparent hover:border-indigo-100"
+                        >
+                            <Edit2 size={16} />
+                            Editar Dados
+                        </button>
+                    )}
                 </div>
             </div>
+
+            <hr className="border-slate-100"/>
 
             {loadingHistory ? (
                 <div className="flex justify-center py-20">
@@ -93,15 +187,15 @@ export const StudentsPage: React.FC<Props> = ({ data }) => {
 
                                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                                             {mod.columns.map((col: any) => (
-                                                <div key={col.id} className="bg-slate-50 rounded-lg p-3 border border-slate-100 relative group hover:border-indigo-200 transition-colors">
-                                                    <span className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">{col.name}</span>
-                                                    <div className="font-medium text-slate-800 text-sm truncate" title={col.value}>
+                                                <div key={col.id} className={`rounded-lg p-3 border relative group transition-colors ${getValueStyle(col.value)}`}>
+                                                    <span className="text-[10px] font-bold opacity-60 uppercase mb-1 block">{col.name}</span>
+                                                    <div className="font-medium text-sm truncate" title={col.value}>
                                                         {col.type === 'check' ? (
                                                             col.value === 'true' ? 
-                                                            <span className="flex items-center gap-1 text-emerald-600"><CheckCircle2 size={14}/> Sim</span> : 
-                                                            <span className="flex items-center gap-1 text-slate-400"><XCircle size={14}/> Não</span>
+                                                            <span className="flex items-center gap-1 text-emerald-700"><CheckCircle2 size={16}/> Sim</span> : 
+                                                            <span className="flex items-center gap-1 opacity-50"><XCircle size={16}/> Não</span>
                                                         ) : (
-                                                            col.value || <span className="text-slate-300 italic">-</span>
+                                                            col.value || <span className="opacity-30 italic">-</span>
                                                         )}
                                                     </div>
                                                 </div>

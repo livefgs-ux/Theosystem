@@ -68,15 +68,22 @@ export default function App() {
 
   const loadGlobalData = async () => {
     try {
-      const data = await api.fetchGlobalData();
-      setAppData(data);
+      // Optimized: Fetch Metadata only. Heavy tables (attendance/transactions) are loaded on demand by pages.
+      const data = await api.fetchMetadata();
+      
+      // Fetch full arrays for compatibility with Books/Dashboard
+      const transactions = await api.getTransactions();
+      const attendance = await api.getAllAttendance(); // Fetch attendance for Dashboard stats
+      
+      setAppData({
+          ...data,
+          transactions: transactions.data || [],
+          attendance: attendance.data || []
+      });
+      
       setSetupRequired(false);
     } catch (err: any) {
       console.error("Data Load Error:", err);
-      // Check for:
-      // 42P01: Postgres code for undefined table
-      // 404: PostgREST code for Not Found (Missing table)
-      // Message string matching
       if (
         err.code === '42P01' || 
         err.status === 404 || 

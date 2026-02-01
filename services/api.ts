@@ -53,6 +53,10 @@ export const api = {
     return await supabase.from('students').insert({ name, matricula, user_id: userId }).select().single();
   },
 
+  async updateStudent(id: string, updates: Partial<Student>) {
+    return await supabase.from('students').update(updates).eq('id', id).select();
+  },
+
   async searchStudents(query: string) {
     return await supabase.from('students').select('*').ilike('name', `%${query}%`).limit(10);
   },
@@ -108,11 +112,18 @@ export const api = {
 
             history.push({
                 courseName: enroll.course?.name,
-                termName: enroll.course?.term?.name,
+                termName: enroll.course?.term?.name || 'Sem Período',
                 modules: organizedModules
             });
         }
     }
+
+    // Sort history by term name then course name
+    history.sort((a, b) => {
+        const termCompare = (b.termName || '').localeCompare(a.termName || '');
+        if (termCompare !== 0) return termCompare;
+        return (a.courseName || '').localeCompare(b.courseName || '');
+    });
 
     return { student, history };
   },
@@ -199,7 +210,45 @@ export const api = {
 
   // --- BOOK TRANSACTIONS ---
   async getTransactions() {
+    // Limit to recent or paginate in real app, keeping simple for now
     return await supabase.from('book_transactions').select('*').order('date', { ascending: false });
+  },
+
+  async getPendingReturns() {
+    // Custom query to get deliveries without matching returns
+    // This logic mimics the "current stock" calculation but returns the list
+    const { data: transactions } = await supabase
+        .from('book_transactions')
+        .select('*, student:students(name), book:library_books(title, code)')
+        .order('date', { ascending: false });
+    
+    if (!transactions) return [];
+
+    const deliveredMap = new Map();
+    // Simple algorithm: Last transaction per (student, book) pair determines status
+    // If it's a delivery and no return after it.
+    
+    // Sort oldest to newest to replay history
+    const sorted = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    
+    const pending: any[] = [];
+    const statusMap = new Map<string, string>(); // Key: "studentId_bookId", Value: "delivered" | "returned"
+
+    sorted.forEach(t => {
+        const key = `${t.student_id}_${t.book_id}`;
+        statusMap.set(key, t.type);
+    });
+
+    statusMap.forEach((status, key) => {
+        if (status === 'delivery') {
+            const [sId, bId] = key.split('_');
+            // Find the delivery transaction details
+            const delivery = transactions.find(t => t.student_id === sId && t.book_id === bId && t.type === 'delivery');
+            if (delivery) pending.push(delivery);
+        }
+    });
+
+    return pending;
   },
 
   async createTransaction(data: { studentId: string, bookId: string, type: string, date: string }) {
@@ -214,8 +263,18 @@ export const api = {
   },
 
   // --- ATTENDANCE ---
-  async getAttendance() {
-    return await supabase.from('attendance').select('*');
+  
+  // Optimized: Get attendance only for specific course
+  async getAttendanceByCourse(courseId: string) {
+    return await supabase
+        .from('attendance')
+        .select('*')
+        .eq('course_id', courseId);
+  },
+
+  // Legacy global fetch (can be deprecated or used for specific dumps)
+  async getAllAttendance() {
+     return await supabase.from('attendance').select('*');
   },
 
   async deleteAttendance(studentId: string, courseId: string, date: string) {
@@ -236,29 +295,42 @@ export const api = {
       }, { onConflict: 'student_id,course_id,date' });
   },
 
-  // --- GLOBAL DATA ---
-  async fetchGlobalData(): Promise<AppState> {
-    const [students, courses, books, transactions, attendance] = await Promise.all([
+  // --- GLOBAL DATA (Optimized) ---
+  // Only fetches metadata. Heavy lifting is done on specific pages.
+  async fetchMetadata(): Promise<AppState> {
+    const [students, courses, books] = await Promise.all([
       this.getAllStudents(),
       this.getCourses(),
-      this.getLibraryBooks(),
-      this.getTransactions(),
-      this.getAttendance()
+      this.getLibraryBooks()
     ]);
 
     // Format courses with simple term string if term is joined
     const formattedCourses = (courses.data || []).map((c: any) => ({
       ...c,
       term: c.term?.name || 'Geral',
-      schedule: [] // Could calculate this from modules or attendance logs
+      schedule: [] 
     }));
 
     return {
       students: students.data || [],
       courses: formattedCourses,
       books: books.data || [],
-      transactions: transactions.data || [],
-      attendance: attendance.data || []
+      transactions: [], // Loaded on demand
+      attendance: [] // Loaded on demand
     };
+  },
+
+  async fetchDashboardStats() {
+     // Run separate count queries for performance
+     const { count: students } = await supabase.from('students').select('*', { count: 'exact', head: true });
+     const { count: books } = await supabase.from('library_books').select('*', { count: 'exact', head: true }); 
+     // For transactions/attendance stats, we might need some aggregation or fetch recent
+     // For now, to keep compatible with Dashboard component without rewriting it entirely, 
+     // we might fetch a subset or use RPC in future.
+     // We will fetch full transactions for stats as they are needed for calculation
+     const { data: transactions } = await supabase.from('book_transactions').select('type');
+     const { data: attendance } = await supabase.from('attendance').select('status, course_id');
+     
+     return { students, books, transactions, attendance };
   }
 };

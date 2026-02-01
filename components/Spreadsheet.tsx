@@ -95,7 +95,7 @@ export const Spreadsheet: React.FC<Props> = ({ courseId, onBack }) => {
     });
     csv += "\n";
     data.enrollments.forEach(e => {
-        csv += `"${e.student.name}"`;
+        csv += `"${e.student?.name || 'Desconhecido'}"`;
         data.modules.forEach(m => {
             m.columns?.forEach(c => {
                 const val = data.records[`${e.id}_${c.id}`] || "";
@@ -159,7 +159,7 @@ export const Spreadsheet: React.FC<Props> = ({ courseId, onBack }) => {
                   value={newModule}
                   onChange={e => setNewModule(e.target.value)}
                   placeholder="Ex: Pentateuco"
-                  className="border border-r-0 border-slate-300 px-3 py-2 text-sm w-56 focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="border border-slate-300 px-3 py-2 text-sm w-56 focus:ring-2 focus:ring-blue-500 outline-none"
                 />
                 <button onClick={handleAddModule} className="bg-blue-600 text-white px-3 hover:bg-blue-700 transition-colors flex items-center">
                   <Plus size={18}/>
@@ -255,8 +255,8 @@ export const Spreadsheet: React.FC<Props> = ({ courseId, onBack }) => {
             <tbody>
                 {data.enrollments.map((enrollment, idx) => (
                     <tr key={enrollment.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}>
-                        <td className="sticky left-0 z-10 bg-inherit border border-slate-300 px-4 py-2 font-medium text-slate-800 shadow-[4px_0_10px_-4px_rgba(0,0,0,0.1)] truncate max-w-[200px]" title={enrollment.student.name}>
-                            {enrollment.student.name}
+                        <td className="sticky left-0 z-10 bg-inherit border border-slate-300 px-4 py-2 font-medium text-slate-800 shadow-[4px_0_10px_-4px_rgba(0,0,0,0.1)] truncate max-w-[200px]" title={enrollment.student?.name}>
+                            {enrollment.student?.name || 'Aluno Desconhecido'}
                         </td>
                         {data.modules.map(mod => (
                             <>
