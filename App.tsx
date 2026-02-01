@@ -72,7 +72,15 @@ export default function App() {
       setSetupRequired(false);
     } catch (err: any) {
       console.error("Data Load Error:", err);
-      if (err.code === '42P01' || (err.message && err.message.includes('does not exist'))) {
+      // Check for:
+      // 42P01: Postgres code for undefined table
+      // 404: PostgREST code for Not Found (Missing table)
+      // Message string matching
+      if (
+        err.code === '42P01' || 
+        err.status === 404 || 
+        (err.message && (err.message.includes('does not exist') || err.message.includes('404')))
+      ) {
         setSetupRequired(true);
       }
     }
@@ -84,33 +92,47 @@ export default function App() {
 
   if (setupRequired && session) {
     return (
-        <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6">
-            <div className="bg-white p-8 rounded-xl max-w-2xl w-full shadow-2xl">
+        <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 animate-in fade-in duration-500">
+            <div className="bg-white p-8 rounded-xl max-w-2xl w-full shadow-2xl border-t-4 border-amber-500">
                 <div className="flex items-center gap-3 mb-6 border-b border-slate-100 pb-4">
                     <div className="bg-amber-100 p-3 rounded-full">
                         <Database className="text-amber-600" size={32} />
                     </div>
                     <div>
-                        <h2 className="text-xl font-bold text-slate-800">Configuração Inicial</h2>
-                        <p className="text-slate-500 text-sm">Crie as tabelas no Supabase para começar.</p>
+                        <h2 className="text-xl font-bold text-slate-800">Banco de Dados Não Encontrado</h2>
+                        <p className="text-slate-500 text-sm">Parece ser seu primeiro acesso. Vamos criar as tabelas necessárias.</p>
                     </div>
                 </div>
+                
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-6">
+                    <p className="text-sm text-slate-600 mb-2 font-semibold">Instruções:</p>
+                    <ol className="list-decimal list-inside text-sm text-slate-500 space-y-1">
+                        <li>Copie o código SQL abaixo.</li>
+                        <li>Vá ao painel do Supabase {'>'} <strong>SQL Editor</strong>.</li>
+                        <li>Cole o código e clique em <strong>Run</strong>.</li>
+                        <li>Volte aqui e atualize a página.</li>
+                    </ol>
+                </div>
+
                 <div className="relative group mb-6">
                     <button 
-                        onClick={() => navigator.clipboard.writeText(DB_SCHEMA)}
-                        className="absolute top-2 right-2 bg-slate-800 text-white px-2 py-1 rounded text-xs"
+                        onClick={() => {
+                            navigator.clipboard.writeText(DB_SCHEMA);
+                            alert("SQL Copiado!");
+                        }}
+                        className="absolute top-2 right-2 bg-slate-800 hover:bg-slate-700 text-white px-3 py-1.5 rounded text-xs font-medium transition-colors flex items-center gap-1"
                     >
-                        Copiar SQL
+                        <Copy size={12}/> Copiar
                     </button>
-                    <pre className="bg-slate-900 text-slate-300 p-4 rounded-lg overflow-auto max-h-64 text-xs font-mono border border-slate-700">
+                    <pre className="bg-slate-900 text-slate-300 p-4 rounded-lg overflow-auto max-h-64 text-xs font-mono border border-slate-700 shadow-inner custom-scrollbar">
                         {DB_SCHEMA}
                     </pre>
                 </div>
                 <button 
                     onClick={() => window.location.reload()}
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2"
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 rounded-lg font-bold flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
                 >
-                    <CheckCircle2 size={20} /> Já executei o SQL
+                    <CheckCircle2 size={20} /> Já executei o SQL (Recarregar)
                 </button>
             </div>
         </div>
@@ -191,6 +213,9 @@ export default function App() {
                           </div>
                        </div>
                     ))}
+                    {appData.students.length === 0 && (
+                        <p className="text-slate-400 italic col-span-full text-center py-8">Nenhum aluno cadastrado globalmente.</p>
+                    )}
                  </div>
               </div>
             )}
