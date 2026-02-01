@@ -25,43 +25,49 @@ export const excelImporter = {
 
           if (jsonData.length < 2) throw new Error("Arquivo vazio ou formato inválido.");
 
-          // 1. Identify Structure
+          // 1. Intelligent Structure Detection
           onProgress("Analisando estrutura do arquivo...");
           
           let headerRowIndex = -1;
-          // Look for the row that contains "ALUNO" or "NOME"
-          for (let i = 0; i < Math.min(jsonData.length, 10); i++) {
-            const rowStr = jsonData[i].join(' ').toUpperCase();
-            if (rowStr.includes('ALUNO') || rowStr.includes('NOME')) {
-              headerRowIndex = i;
-              break;
+          let maxScore = 0;
+          
+          // Scan first 30 rows to find the best header candidate
+          for (let i = 0; i < Math.min(jsonData.length, 30); i++) {
+            const rowStr = jsonData[i].map(c => c?.toString().toUpperCase() || '').join(' ');
+            let score = 0;
+            if (rowStr.includes('ALUNO')) score += 10;
+            if (rowStr.includes('NOME')) score += 5;
+            if (rowStr.includes('LIVRO')) score += 2;
+            if (rowStr.includes('AULA')) score += 2;
+            if (rowStr.includes('PROVA')) score += 2;
+            
+            if (score > maxScore) {
+                maxScore = score;
+                headerRowIndex = i;
             }
           }
 
-          if (headerRowIndex === -1) throw new Error("Não foi possível encontrar a coluna 'ALUNO' no cabeçalho.");
+          if (headerRowIndex === -1) throw new Error("Não foi possível identificar a linha de cabeçalho (procurei por 'ALUNO' ou 'NOME').");
 
-          // Context (Title) is usually above the header
-          const titleRow = headerRowIndex > 0 ? jsonData[0][0] : "Nova Turma Importada";
-          const courseName = typeof titleRow === 'string' ? titleRow : "Turma Importada";
-          const termName = "Período Importado " + new Date().getFullYear();
-
-          // 2. Create Structure in DB
-          onProgress("Criando Período e Turma...");
+          // Determine Title from context (usually row above header or row 0)
+          let titleRow = "Nova Turma Importada";
+          if (headerRowIndex > 0 && jsonData[headerRowIndex - 1][0]) {
+              titleRow = jsonData[headerRowIndex - 1][0].toString();
+          } else if (jsonData[0][0]) {
+              titleRow = jsonData[0][0].toString();
+          }
           
-          // Create Term (or use existing if we implemented search, but for now create new to be safe)
-          const { data: term, error: termError } = await api.createTerm(termName, userId);
-          if (termError) throw termError;
+          const courseName = titleRow.length > 50 ? titleRow.substring(0, 50) + '...' : titleRow;
+          const termName = "Importado " + new Date().toLocaleDateString('pt-BR');
+
+          // 2. Create DB Structure
+          onProgress(`Criando Turma: ${courseName}...`);
+          
+          const { data: term } = await api.createTerm(termName, userId);
           const termId = term![0].id;
-
-          // Create Course
-          const { data: course, error: courseError } = await api.createCourse(termId, courseName);
-          if (courseError) throw courseError;
+          const { data: course } = await api.createCourse(termId, courseName);
           const courseId = course![0].id;
-
-          // Create a default Module "Geral" to hold the imported columns
-          // (Improving this to split by 'LIVRO' if possible would be advanced, sticking to flat for robustness)
-          const { data: module, error: modError } = await api.addModule(courseId, "Dados Importados");
-          if (modError) throw modError;
+          const { data: module } = await api.addModule(courseId, "Dados Gerais");
           const moduleId = module![0].id;
 
           // 3. Create Columns
@@ -70,12 +76,19 @@ export const excelImporter = {
           const columnMap: Record<number, string> = {}; // Index -> Column ID
 
           for (let i = 0; i < headers.length; i++) {
-            const colName = headers[i]?.toString().trim();
+            let colName = headers[i]?.toString().trim();
             if (!colName) continue;
             
-            // Skip "ALUNO" column creation, as it maps to the student entity
+            // Clean up name
+            colName = colName.replace(/\r?\n|\r/g, ' '); 
+
+            // Identify Student Column
             if (colName.toUpperCase().includes('ALUNO') || colName.toUpperCase() === 'NOME') {
-              continue;
+              continue; // Don't create a column for the student name itself
+            }
+            // Ignore generic index columns
+            if (colName.toUpperCase() === 'N°' || colName === '#' || colName === 'ID') {
+                continue;
             }
 
             const { data: colData } = await api.addColumn(moduleId, colName);
@@ -84,69 +97,71 @@ export const excelImporter = {
             }
           }
 
-          // 4. Process Rows (Students & Records)
+          // 4. Process Rows (Bulk Insert Mode)
           const studentNameIndex = headers.findIndex((h: any) => 
             h?.toString().toUpperCase().includes('ALUNO') || h?.toString().toUpperCase() === 'NOME'
           );
 
-          if (studentNameIndex === -1) throw new Error("Coluna de Aluno não identificada.");
+          if (studentNameIndex === -1) throw new Error("Coluna de Aluno não encontrada.");
 
           const dataRows = jsonData.slice(headerRowIndex + 1);
           let processedCount = 0;
           let errors: string[] = [];
 
           for (const row of dataRows) {
-            if (!row[studentNameIndex]) continue; // Skip empty names
+            // Robustness: Skip rows that look like repeated headers or empty
+            if (!row[studentNameIndex]) continue;
+            
+            const rawName = row[studentNameIndex].toString().trim();
+            if (rawName.toUpperCase() === 'ALUNO' || rawName.toUpperCase() === 'NOME' || rawName.length < 3) continue;
 
-            const studentName = row[studentNameIndex].toString().trim();
+            // Also skip if it looks like a summary row (e.g., "1° TRIMESTRE" inside the name col)
+            if (rawName.includes('TRIMESTRE') || rawName.includes('TEOLOGIA')) continue;
+
             processedCount++;
-            onProgress(`Processando aluno ${processedCount}/${dataRows.length}: ${studentName}`);
+            onProgress(`Importando (${processedCount}): ${rawName}`);
 
             try {
                 // Find or Create Student
-                let studentId: string;
-                
-                // Try to find existing student by name to avoid duplicates
-                const { data: existing } = await api.searchStudents(studentName);
-                if (existing && existing.length > 0 && existing[0].name.toUpperCase() === studentName.toUpperCase()) {
-                    studentId = existing[0].id;
-                } else {
-                    const { data: newStudent } = await api.addStudent(studentName, '', userId);
-                    if (!newStudent) {
-                        errors.push(`Falha ao criar aluno: ${studentName}`);
-                        continue;
-                    }
-                    studentId = newStudent.id;
+                const { data: student } = await api.addStudent(rawName, '', userId);
+                if (!student) {
+                    errors.push(`Erro ao criar: ${rawName}`);
+                    continue;
                 }
 
                 // Enroll
-                const { data: enrollment } = await api.enrollStudent(courseId, studentId);
-                let enrollmentId = enrollment && enrollment[0] ? enrollment[0].id : null;
-                
-                if(!enrollmentId) {
-                    // Maybe already enrolled, try to fetch
-                     const { data: existingEnroll } = await supabase.from('enrollments').select('id').eq('course_id', courseId).eq('student_id', studentId).single();
-                     if(existingEnroll) enrollmentId = existingEnroll.id;
+                const { data: enrollmentData } = await api.enrollStudent(courseId, student.id);
+                const enrollmentId = enrollmentData?.[0]?.id;
+
+                if (!enrollmentId) {
+                    errors.push(`Erro matrícula: ${rawName}`);
+                    continue;
                 }
 
-                if(!enrollmentId) {
-                     errors.push(`Falha ao matricular aluno: ${studentName}`);
-                     continue;
-                }
-
-                // Insert Records
+                // Prepare records for this student
+                const studentRecords = [];
                 for (let i = 0; i < row.length; i++) {
                     if (i === studentNameIndex) continue;
                     const columnId = columnMap[i];
-                    const value = row[i] ? row[i].toString() : '';
+                    const value = row[i] !== undefined ? row[i].toString().trim() : '';
                     
                     if (columnId && value) {
-                        await api.saveRecord(enrollmentId, columnId, value);
+                        studentRecords.push({
+                            enrollment_id: enrollmentId,
+                            column_id: columnId,
+                            value: value
+                        });
                     }
                 }
+
+                // Bulk Save Records
+                if (studentRecords.length > 0) {
+                    await api.saveRecordsBatch(studentRecords);
+                }
+
             } catch (innerErr: any) {
-                console.error(innerErr);
-                errors.push(`Erro ao processar ${studentName}: ${innerErr.message}`);
+                console.warn(innerErr);
+                errors.push(`Falha em ${rawName}: ${innerErr.message}`);
             }
           }
 

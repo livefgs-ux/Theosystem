@@ -50,6 +50,10 @@ export const api = {
   },
 
   async addStudent(name: string, matricula: string, userId: string) {
+    // Check if student exists to avoid duplicates during import
+    const existing = await this.findStudent(name, userId);
+    if (existing.data) return existing;
+
     return await supabase.from('students').insert({ name, matricula, user_id: userId }).select().single();
   },
 
@@ -62,6 +66,16 @@ export const api = {
   },
 
   async enrollStudent(courseId: string, studentId: string) {
+    // Check if enrolled
+    const { data: existing } = await supabase
+        .from('enrollments')
+        .select('*')
+        .eq('course_id', courseId)
+        .eq('student_id', studentId)
+        .maybeSingle();
+    
+    if (existing) return { data: [existing], error: null };
+
     return await supabase.from('enrollments').insert({ course_id: courseId, student_id: studentId }).select();
   },
 
@@ -189,6 +203,17 @@ export const api = {
         value: value,
         updated_at: new Date().toISOString()
       }, { onConflict: 'enrollment_id,column_id' });
+  },
+
+  // Batch save for imports
+  async saveRecordsBatch(records: { enrollment_id: string, column_id: string, value: string }[]) {
+      if (records.length === 0) return;
+      return await supabase
+        .from('academic_records')
+        .upsert(records.map(r => ({
+            ...r,
+            updated_at: new Date().toISOString()
+        })), { onConflict: 'enrollment_id,column_id' });
   },
 
   async addModule(courseId: string, name: string) {
@@ -321,13 +346,8 @@ export const api = {
   },
 
   async fetchDashboardStats() {
-     // Run separate count queries for performance
      const { count: students } = await supabase.from('students').select('*', { count: 'exact', head: true });
      const { count: books } = await supabase.from('library_books').select('*', { count: 'exact', head: true }); 
-     // For transactions/attendance stats, we might need some aggregation or fetch recent
-     // For now, to keep compatible with Dashboard component without rewriting it entirely, 
-     // we might fetch a subset or use RPC in future.
-     // We will fetch full transactions for stats as they are needed for calculation
      const { data: transactions } = await supabase.from('book_transactions').select('type');
      const { data: attendance } = await supabase.from('attendance').select('status, course_id');
      
