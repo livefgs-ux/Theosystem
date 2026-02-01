@@ -32,6 +32,7 @@ export default function App() {
   });
 
   useEffect(() => {
+    console.log("TheoSystem v1.3 loaded");
     checkConnection();
   }, []);
 
@@ -79,7 +80,7 @@ export default function App() {
 
   // --- Auth & Setup Views ---
 
-  if (loading) return <div className="h-screen flex items-center justify-center bg-slate-100"><Loader2 className="animate-spin text-blue-600" size={40}/></div>;
+  if (loading) return <div className="h-screen flex items-center justify-center bg-slate-100"><Loader2 className="animate-spin text-indigo-600" size={40}/></div>;
 
   if (setupRequired && session) {
     return (
@@ -245,7 +246,7 @@ function AuthScreen({ authLoading, setAuthLoading }: any) {
     return (
         <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
             <div className="bg-white p-8 rounded-xl max-w-md w-full text-center shadow-2xl">
-                <div className="w-16 h-16 bg-blue-900 rounded-full mx-auto flex items-center justify-center mb-4 shadow-lg">
+                <div className="w-16 h-16 bg-indigo-900 rounded-full mx-auto flex items-center justify-center mb-4 shadow-lg">
                     <User className="text-white" size={32} />
                 </div>
                 <h1 className="text-2xl font-serif text-slate-900 font-bold mb-1">TheoSystem</h1>
@@ -256,11 +257,11 @@ function AuthScreen({ authLoading, setAuthLoading }: any) {
                     )}
                     <input type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} className="w-full border p-3 rounded-lg" required />
                     <input type="password" placeholder="Senha" value={password} onChange={e=>setPassword(e.target.value)} className="w-full border p-3 rounded-lg" required />
-                    <button disabled={authLoading} className="w-full bg-blue-900 text-white p-3 rounded-lg font-bold flex justify-center items-center gap-2">
+                    <button disabled={authLoading} className="w-full bg-indigo-900 text-white p-3 rounded-lg font-bold flex justify-center items-center gap-2">
                         {authLoading ? <Loader2 className="animate-spin" /> : (isSignUp ? 'Criar Conta' : 'Entrar')}
                     </button>
                 </form>
-                <button onClick={() => setIsSignUp(!isSignUp)} className="text-sm text-blue-600 mt-4">
+                <button onClick={() => setIsSignUp(!isSignUp)} className="text-sm text-indigo-600 mt-4">
                     {isSignUp ? 'Já tem conta? Login' : 'Criar conta'}
                 </button>
             </div>

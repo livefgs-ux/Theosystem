@@ -125,9 +125,9 @@ export const CoursesPage: React.FC<Props> = ({ userId, onEnterCourse, onDataChan
             <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center backdrop-blur-sm">
                 <div className="bg-white p-8 rounded-2xl shadow-2xl flex flex-col items-center gap-6 max-w-sm w-full animate-in zoom-in-95 duration-200">
                     <div className="relative">
-                         <div className="w-16 h-16 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
+                         <div className="w-16 h-16 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"></div>
                          <div className="absolute inset-0 flex items-center justify-center">
-                             <UploadCloud size={24} className="text-blue-600" />
+                             <UploadCloud size={24} className="text-indigo-600" />
                          </div>
                     </div>
                     <div className="text-center">
@@ -211,7 +211,7 @@ export const CoursesPage: React.FC<Props> = ({ userId, onEnterCourse, onDataChan
                   className="hidden" 
                 />
                 
-                {/* Botão de Importar Destacado */}
+                {/* Botão de Importar */}
                 <button 
                     onClick={() => fileInputRef.current?.click()}
                     className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 px-5 py-2.5 rounded-xl flex items-center justify-center gap-2 font-semibold transition-all"
@@ -220,17 +220,17 @@ export const CoursesPage: React.FC<Props> = ({ userId, onEnterCourse, onDataChan
                     <span>Importar Planilha</span>
                 </button>
                 
-                {/* Botão de Criar (Azul e com Texto) */}
+                {/* Botão de Criar (Agora Índigo para combinar com Sidebar) */}
                 <div className="flex gap-2 w-full sm:w-auto">
                     <input 
                       value={newTermName} 
                       onChange={e => setNewTermName(e.target.value)}
                       placeholder="Novo Semestre/Ano..." 
-                      className="border border-slate-200 rounded-xl px-4 py-2.5 text-sm w-full md:w-64 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                      className="border border-slate-200 rounded-xl px-4 py-2.5 text-sm w-full md:w-64 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
                     />
                     <button 
                       onClick={handleCreateTerm} 
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl flex items-center justify-center gap-2 font-bold shadow-md shadow-blue-900/10 transition-all hover:-translate-y-0.5"
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl flex items-center justify-center gap-2 font-bold shadow-md shadow-indigo-900/10 transition-all hover:-translate-y-0.5"
                     >
                         <Plus size={20}/>
                         <span>Criar</span>
@@ -241,7 +241,7 @@ export const CoursesPage: React.FC<Props> = ({ userId, onEnterCourse, onDataChan
 
         {/* Terms List */}
         <div className="space-y-4">
-            {loading ? <div className="text-center py-12"><Loader2 className="animate-spin mx-auto text-blue-600 w-8 h-8"/></div> : 
+            {loading ? <div className="text-center py-12"><Loader2 className="animate-spin mx-auto text-indigo-600 w-8 h-8"/></div> : 
              terms.map(term => (
                 <div key={term.id} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden transition-all hover:shadow-md">
                     <div className="p-4 flex items-center justify-between bg-slate-50 border-b border-slate-100">
@@ -249,7 +249,7 @@ export const CoursesPage: React.FC<Props> = ({ userId, onEnterCourse, onDataChan
                           className="flex items-center gap-4 cursor-pointer select-none group flex-1"
                           onClick={() => toggleTerm(term.id)}
                         >
-                            <div className={`p-2.5 rounded-lg transition-colors ${expandedTerm === term.id ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-slate-400 border border-slate-200 group-hover:border-blue-300 group-hover:text-blue-500'}`}>
+                            <div className={`p-2.5 rounded-lg transition-colors ${expandedTerm === term.id ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-400 border border-slate-200 group-hover:border-indigo-300 group-hover:text-indigo-500'}`}>
                                 <FolderOpen size={20} />
                             </div>
                             <span className="font-bold text-lg text-slate-700 group-hover:text-slate-900">{term.name}</span>
@@ -258,7 +258,7 @@ export const CoursesPage: React.FC<Props> = ({ userId, onEnterCourse, onDataChan
                             <button 
                               onClick={() => handleDuplicateTerm(term.id, term.name)}
                               title="Duplicar Estrutura"
-                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
                             >
                                 <Copy size={18}/>
                             </button>
@@ -279,13 +279,13 @@ export const CoursesPage: React.FC<Props> = ({ userId, onEnterCourse, onDataChan
                                     <div 
                                       key={course.id} 
                                       onClick={() => onEnterCourse(course.id)}
-                                      className="group p-5 rounded-xl border border-slate-200 hover:border-blue-500 hover:ring-1 hover:ring-blue-500 cursor-pointer transition-all bg-slate-50 hover:bg-blue-50/10 relative overflow-hidden"
+                                      className="group p-5 rounded-xl border border-slate-200 hover:border-indigo-500 hover:ring-1 hover:ring-indigo-500 cursor-pointer transition-all bg-slate-50 hover:bg-indigo-50/10 relative overflow-hidden"
                                     >
                                         <div className="flex justify-between items-start">
-                                            <h3 className="font-bold text-slate-800 group-hover:text-blue-700 relative z-10 pr-2 text-lg">{course.name}</h3>
-                                            <ArrowRight size={18} className="text-slate-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all"/>
+                                            <h3 className="font-bold text-slate-800 group-hover:text-indigo-700 relative z-10 pr-2 text-lg">{course.name}</h3>
+                                            <ArrowRight size={18} className="text-slate-300 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all"/>
                                         </div>
-                                        <div className="mt-4 pt-4 border-t border-slate-200/60 flex items-center gap-2 text-xs font-medium text-slate-500 group-hover:text-blue-600">
+                                        <div className="mt-4 pt-4 border-t border-slate-200/60 flex items-center gap-2 text-xs font-medium text-slate-500 group-hover:text-indigo-600">
                                             <FileSpreadsheet size={14} />
                                             <span>Abrir Planilha</span>
                                         </div>
@@ -303,7 +303,7 @@ export const CoursesPage: React.FC<Props> = ({ userId, onEnterCourse, onDataChan
                                     value={newCourseName}
                                     onChange={e => setNewCourseName(e.target.value)}
                                     placeholder="Nome da Nova Turma..."
-                                    className="text-sm border border-slate-300 rounded-lg px-3 py-2 w-64 focus:ring-2 focus:ring-blue-500 outline-none"
+                                    className="text-sm border border-slate-300 rounded-lg px-3 py-2 w-64 focus:ring-2 focus:ring-indigo-500 outline-none"
                                 />
                                 <button 
                                   onClick={() => handleCreateCourse(term.id)}
@@ -319,8 +319,8 @@ export const CoursesPage: React.FC<Props> = ({ userId, onEnterCourse, onDataChan
             
             {terms.length === 0 && !loading && (
                 <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-slate-300">
-                    <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <FolderOpen className="text-blue-200" size={40} />
+                    <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <FolderOpen className="text-indigo-200" size={40} />
                     </div>
                     <h3 className="text-xl font-bold text-slate-700">Bem-vindo ao TheoSystem</h3>
                     <p className="text-slate-500 max-w-md mx-auto mt-2">Comece criando um <strong>Ano Acadêmico</strong> acima ou use o botão de <strong>Importar Excel</strong> para carregar seus dados.</p>

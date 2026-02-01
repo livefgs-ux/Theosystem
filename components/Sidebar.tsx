@@ -21,12 +21,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLog
     <aside className="w-64 bg-slate-900 text-slate-100 flex flex-col h-screen fixed left-0 top-0 shadow-xl z-20">
       <div className="p-6 border-b border-slate-800 flex items-center justify-between">
         <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+            {/* Changed to Indigo to verify update */}
+            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-900/50">
             <GraduationCap size={20} className="text-white" />
             </div>
             <div className="flex flex-col">
-                <span className="font-bold text-xl tracking-tight leading-none">TheoSystem</span>
-                <span className="text-[10px] text-slate-500 font-mono mt-1">v1.2</span>
+                <span className="font-bold text-xl tracking-tight leading-none text-white">TheoSystem</span>
+                <span className="text-[10px] text-indigo-400 font-mono mt-1 font-bold">Versão 1.3</span>
             </div>
         </div>
       </div>
@@ -41,8 +42,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLog
               onClick={() => setActiveTab(item.id)}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
                 isActive 
-                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' 
-                  : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50 translate-x-1' 
+                  : 'text-slate-400 hover:bg-slate-800 hover:text-white hover:translate-x-1'
               }`}
             >
               <Icon size={20} />
